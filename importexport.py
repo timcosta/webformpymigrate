@@ -33,6 +33,20 @@ def convert(input):
     else:
         return input
 
+def checkTableExists(dbcon, tablename):
+    dbcur = dbcon.cursor()
+    dbcur.execute("""
+        SELECT COUNT(*)
+        FROM information_schema.tables
+        WHERE table_name = '{0}'
+        """.format(tablename.replace('\'', '\'\'')))
+    if dbcur.fetchone()[0] == 1:
+        dbcur.close()
+        return True
+
+    dbcur.close()
+    return False
+
 if len(sys.argv) < 2:
 	exit("Must supply at least one argument (e,i)")
 
@@ -41,7 +55,7 @@ if sys.argv[1] == '-e':
 	print "Welcome to the Webform Export script written by Tim Costa"
 	print "Let's get started. Please provide the following information:"
 
-	host = raw_input("Host: ")
+	host = raw_input("Database Server: ")
 	username = raw_input("Username: ")
 	password = getpass.getpass()
 	databaseName = raw_input("Database Name: ")
@@ -62,63 +76,73 @@ if sys.argv[1] == '-e':
 	exportData = collections.OrderedDict()
 
 	# get all tables from database
-	sql = "SELECT * FROM node WHERE type='webform';"
-	print "Fetching the list of webforms..."
-	cur.execute(sql)
-	count = 1
-	for row in cur.fetchall():
-		print "{}: {}".format(row[0],row[4])
-		count = count + 1
-	formToExport = raw_input("Select a form to export: ")
-
-	sql = "SELECT * FROM node WHERE nid="+formToExport
-	cur.execute(sql)
-	exportData['node'] = cur.fetchall()
-	formName = exportData['node'][0][4]
-
-	sql = "SELECT * FROM field_data_body WHERE entity_id="+formToExport
-	cur.execute(sql)
-	exportData['field_data_body'] = cur.fetchall()
-
-	sql = "SELECT * FROM field_revision_body WHERE entity_id="+formToExport
-	cur.execute(sql)
-	exportData['field_revision_body'] = cur.fetchall()
-
-	sql = "SELECT * FROM node_comment_statistics WHERE nid="+formToExport
-	cur.execute(sql)
-	exportData['node_comment_statistics'] = cur.fetchall()
-
-	sql = "SELECT * FROM node_revision WHERE nid="+formToExport
-	cur.execute(sql)
-	exportData['node_revision'] = cur.fetchall()
-
-	sql = "SELECT * FROM webform WHERE nid="+formToExport
-	cur.execute(sql)
-	exportData['webform'] = cur.fetchall()
-
-	sql = "SELECT * FROM webform_component WHERE nid="+formToExport
-	cur.execute(sql)
-	exportData['webform_component'] = cur.fetchall()
-
-	sql = "SELECT * FROM webform_roles WHERE nid="+formToExport
-	cur.execute(sql)
-	exportData['webform_roles'] = cur.fetchall()
-
-	sql = "SELECT * FROM webform_validation_rule WHERE nid="+formToExport
-	cur.execute(sql)
-	data = cur.fetchall()
-	exportData['webform_validation_rule'] = data
-
-	rule_components = []
-	for row in data:
-		sql = "{}{}".format( "SELECT * FROM webform_validation_rule_components WHERE ruleid=",row[0])
+	if checkTableExists(db,"webform"):
+		sql = "SELECT * FROM node WHERE type='webform';"
+		print "Fetching the list of webforms..."
 		cur.execute(sql)
-		for rowi in cur.fetchall():
-			rule_components.append([rowi[0],rowi[1]])
+		count = 1
+		for row in cur.fetchall():
+			print "{}: {}".format(row[0],row[4])
+			count = count + 1
+		formToExport = raw_input("Select a form to export: ")
 
-	exportData['webform_validation_rule_components'] = rule_components
-	with open(formName+".json", 'w') as outfile:
-		json.dump(exportData, outfile, indent=4)
+		sql = "SELECT * FROM node WHERE nid="+formToExport
+		cur.execute(sql)
+		exportData['node'] = cur.fetchall()
+		formName = exportData['node'][0][4]
+
+		sql = "SELECT * FROM field_data_body WHERE entity_id="+formToExport
+		cur.execute(sql)
+		exportData['field_data_body'] = cur.fetchall()
+
+		sql = "SELECT * FROM field_revision_body WHERE entity_id="+formToExport
+		cur.execute(sql)
+		exportData['field_revision_body'] = cur.fetchall()
+
+		sql = "SELECT * FROM node_comment_statistics WHERE nid="+formToExport
+		cur.execute(sql)
+		exportData['node_comment_statistics'] = cur.fetchall()
+
+		sql = "SELECT * FROM node_revision WHERE nid="+formToExport
+		cur.execute(sql)
+		exportData['node_revision'] = cur.fetchall()
+
+		sql = "SELECT * FROM webform WHERE nid="+formToExport
+		cur.execute(sql)
+		exportData['webform'] = cur.fetchall()
+
+		sql = "SELECT * FROM webform_component WHERE nid="+formToExport
+		cur.execute(sql)
+		exportData['webform_component'] = cur.fetchall()
+
+		sql = "SELECT * FROM webform_roles WHERE nid="+formToExport
+		cur.execute(sql)
+		exportData['webform_roles'] = cur.fetchall()
+
+		if checkTableExists(db,"webform_validation_rule"):
+
+			sql = "SELECT * FROM webform_validation_rule WHERE nid="+formToExport
+			cur.execute(sql)
+			data = cur.fetchall()
+			exportData['webform_validation_rule'] = data
+
+			rule_components = []
+			for row in data:
+				sql = "{}{}".format( "SELECT * FROM webform_validation_rule_components WHERE ruleid=",row[0])
+				cur.execute(sql)
+				for rowi in cur.fetchall():
+					rule_components.append([rowi[0],rowi[1]])
+
+			exportData['webform_validation_rule_components'] = rule_components
+		else:
+			print "No Webform Validations module detected. Saving your form without any validations from Webform Validations."
+		
+		with open(formName.replace(" ","")+".json", 'w') as outfile:
+			json.dump(exportData, outfile, indent=4)
+			print "Webform saved to "+formName.replace(" ","")+".json"
+	else:
+		print "Webform Table not detected in your database. This script has no purpose if there is no webform table."
+	
 
 elif sys.argv[1] == '-i':
 	# For insert, use 0 or NULL as the nid for the `node` insert. Then fetch based on name and catch the nid given.
@@ -126,7 +150,7 @@ elif sys.argv[1] == '-i':
 	print "Welcome to the Webform Import script written by Tim Costa"
 	print "Let's get started. Please provide the following information:"
 
-	host = raw_input("Host: ")
+	host = raw_input("Database Server: ")
 	username = raw_input("Username: ")
 	password = getpass.getpass()
 	databaseName = raw_input("Database Name: ")
@@ -140,7 +164,9 @@ elif sys.argv[1] == '-i':
 		with open(webformPath) as data_file:    
 			webformJSON = json.load(data_file)
 			webformJSON = convert(webformJSON)
-		print "Your exported webform was loaded successfully!"
+		if not checkTableExists(db,"webform"):
+			exit("Webform table not found in database. Please make sure you have the Webform module installed, and try again.")
+
 	except Exception,e:
 		print "Something went wrong..."
 		print e
@@ -162,8 +188,9 @@ elif sys.argv[1] == '-i':
 		component[0] = nid
 	for role in webformJSON['webform_roles']:
 		role[0] = nid
-	for validation in webformJSON['webform_validation_rule']:
-		validation[2] = nid
+	if webformJSON['webform_validation_rule'] and checkTableExists(db,"webform_validation_rule"):
+		for validation in webformJSON['webform_validation_rule']:
+			validation[2] = nid
 
 	fieldDataBody = tuple(webformJSON['field_data_body'][0])
 	sql = "INSERT INTO field_data_body VALUES "+str(fieldDataBody)
@@ -216,23 +243,27 @@ elif sys.argv[1] == '-i':
 		print sql
 	cur.execute(sql)
 
-	newRuleIds = {}
-	for validation in webformJSON['webform_validation_rule']:
-		validation = tuple(validation)
-		sql = "INSERT INTO webform_validation_rule VALUES (" + "NULL,"+str(validation[1:5])[1:-1]+",NULL,"+str(validation[6:])[1:-2]+")"
+	if webformJSON['webform_validation_rule'] and checkTableExists(db,"webform_validation_rule"):
+
+		newRuleIds = {}
+		for validation in webformJSON['webform_validation_rule']:
+			validation = tuple(validation)
+			sql = "INSERT INTO webform_validation_rule VALUES (" + "NULL,"+str(validation[1:5])[1:-1]+",NULL,"+str(validation[6:])[1:-2]+")"
+			if debug:
+				print sql
+			cur.execute( sql)
+			newRuleIds[validation[0]] = int(db.insert_id())
+
+		webformValidationComponent = ""
+		for validationComp in webformJSON['webform_validation_rule_components']:
+			webformValidationComponent = webformValidationComponent + "({},{}),".format(newRuleIds[validationComp[0]],validationComp[1])
+		webformValidationComponent = webformValidationComponent[0:-1]
+		sql = "INSERT INTO webform_validation_rule_components VALUES "+str(webformValidationComponent)
 		if debug:
 			print sql
-		cur.execute( sql)
-		newRuleIds[validation[0]] = int(db.insert_id())
+		cur.execute(sql)
 
-	webformValidationComponent = ""
-	for validationComp in webformJSON['webform_validation_rule_components']:
-		webformValidationComponent = webformValidationComponent + "({},{}),".format(newRuleIds[validationComp[0]],validationComp[1])
-	webformValidationComponent = webformValidationComponent[0:-1]
-	sql = "INSERT INTO webform_validation_rule_components VALUES "+str(webformValidationComponent)
-	if debug:
-		print sql
-	cur.execute(sql)
+	cur.close()
 
 	db.commit()
 
