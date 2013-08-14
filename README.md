@@ -1,7 +1,7 @@
 WebformPyMigrate
 ===============
 
-Tested on Drupal 7.22, Webform 3.19, Webfrom Validation 1.2
+Tested on Python 2.7+, Drupal 7.22, Webform 3.19, Webfrom Validation 1.2
 
 Export a Drupal Webform Node into JSON and import it to another installation. Supports the Webform Validation module.
 
