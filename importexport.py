@@ -1,9 +1,18 @@
 #! /usr/bin/python
+#
+#
+#  Copyright (C) Lafayette College. All rights reserved.
+#
+#  This code may be used under the GPLv2 license.
+#  https://github.com/tjsail33/webformpymigrate/blob/master/LICENSE
+#
+#  Written by Tim Costa
+#
+#
 
 import MySQLdb
 import getpass
 import collections
-import pprint
 import json
 import sys
 
