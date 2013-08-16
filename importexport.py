@@ -99,6 +99,10 @@ if sys.argv[1] == '-e':
 		cur.execute(sql)
 		exportData['field_revision_body'] = cur.fetchall()
 
+		sql = "SELECT * FROM variable WHERE name=\'webform_addmore_"+formToExport+"\'"
+		cur.execute(sql)
+		exportData['variable'] = cur.fetchall()
+
 		sql = "SELECT * FROM node_comment_statistics WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['node_comment_statistics'] = cur.fetchall()
@@ -137,9 +141,9 @@ if sys.argv[1] == '-e':
 		else:
 			print "No Webform Validations module detected. Saving your form without any validations from Webform Validations."
 		
-		with open(formName.replace(" ","")+".json", 'w') as outfile:
+		with open(formName.replace(" ","_")+".json", 'w') as outfile:
 			json.dump(exportData, outfile, indent=4)
-			print "Webform saved to "+formName.replace(" ","")+".json"
+			print "Webform saved to "+formName.replace(" ","_")+".json"
 	else:
 		print "Webform Table not detected in your database. This script has no purpose if there is no webform table."
 	
@@ -227,12 +231,21 @@ elif sys.argv[1] == '-i':
 
 	webformComponent = ""
 	for component in webformJSON['webform_component']:
+		if component[3]=="ticket_queue":
+			print "Integration with RT detected..."
+			component[6] = raw_input("Please enter the name of the RT queue you would \nlike this form to feed into: ")
 		webformComponent = webformComponent + str(tuple(component))+","
 	webformComponent = webformComponent[0:-1]
 	sql = "INSERT INTO webform_component VALUES "+str(webformComponent)
 	if debug:
 		print sql
 	cur.execute(sql)
+
+	if len(webformJSON['variable']) > 0:
+		sql = "INSERT INTO variable VALUES (\'webform_addmore_"+str(nid)+"\',\'"+webformJSON['variable'][0][1]+"\')"
+		if debug:
+			print sql
+		cur.execute(sql)
 
 	webformRoles = ""
 	for role in webformJSON['webform_roles']:
@@ -243,7 +256,7 @@ elif sys.argv[1] == '-i':
 		print sql
 	cur.execute(sql)
 
-	if webformJSON['webform_validation_rule'] and checkTableExists(db,"webform_validation_rule"):
+	if len(webformJSON['webform_validation_rule']) > 0 and checkTableExists(db,"webform_validation_rule"):
 
 		newRuleIds = {}
 		for validation in webformJSON['webform_validation_rule']:
