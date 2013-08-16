@@ -59,6 +59,7 @@ if sys.argv[1] == '-e':
 	username = raw_input("Username: ")
 	password = getpass.getpass()
 	databaseName = raw_input("Database Name: ")
+	databasePrefix = raw_input("Database Prefix (Leave blank for none): ")
 
 	print "Thanks for that information. Let me make sure I can connect to your database..."
 
@@ -86,53 +87,53 @@ if sys.argv[1] == '-e':
 			count = count + 1
 		formToExport = raw_input("Select a form to export: ")
 
-		sql = "SELECT * FROM node WHERE nid="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"node WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['node'] = cur.fetchall()
 		formName = exportData['node'][0][4]
 
-		sql = "SELECT * FROM field_data_body WHERE entity_id="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"field_data_body WHERE entity_id="+formToExport
 		cur.execute(sql)
 		exportData['field_data_body'] = cur.fetchall()
 
-		sql = "SELECT * FROM field_revision_body WHERE entity_id="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"field_revision_body WHERE entity_id="+formToExport
 		cur.execute(sql)
 		exportData['field_revision_body'] = cur.fetchall()
 
-		sql = "SELECT * FROM variable WHERE name=\'webform_addmore_"+formToExport+"\'"
+		sql = "SELECT * FROM "+databasePrefix+"variable WHERE name=\'webform_addmore_"+formToExport+"\'"
 		cur.execute(sql)
 		exportData['variable'] = cur.fetchall()
 
-		sql = "SELECT * FROM node_comment_statistics WHERE nid="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"node_comment_statistics WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['node_comment_statistics'] = cur.fetchall()
 
-		sql = "SELECT * FROM node_revision WHERE nid="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"node_revision WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['node_revision'] = cur.fetchall()
 
-		sql = "SELECT * FROM webform WHERE nid="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"webform WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['webform'] = cur.fetchall()
 
-		sql = "SELECT * FROM webform_component WHERE nid="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"webform_component WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['webform_component'] = cur.fetchall()
 
-		sql = "SELECT * FROM webform_roles WHERE nid="+formToExport
+		sql = "SELECT * FROM "+databasePrefix+"webform_roles WHERE nid="+formToExport
 		cur.execute(sql)
 		exportData['webform_roles'] = cur.fetchall()
 
-		if checkTableExists(db,"webform_validation_rule"):
+		if checkTableExists(db,databasePrefix+"webform_validation_rule"):
 
-			sql = "SELECT * FROM webform_validation_rule WHERE nid="+formToExport
+			sql = "SELECT * FROM "+databasePrefix+"webform_validation_rule WHERE nid="+formToExport
 			cur.execute(sql)
 			data = cur.fetchall()
 			exportData['webform_validation_rule'] = data
 
 			rule_components = []
 			for row in data:
-				sql = "{}{}".format( "SELECT * FROM webform_validation_rule_components WHERE ruleid=",row[0])
+				sql = "{}{}".format( "SELECT * FROM "+databasePrefix+"webform_validation_rule_components WHERE ruleid=",row[0])
 				cur.execute(sql)
 				for rowi in cur.fetchall():
 					rule_components.append([rowi[0],rowi[1]])
@@ -158,6 +159,7 @@ elif sys.argv[1] == '-i':
 	username = raw_input("Username: ")
 	password = getpass.getpass()
 	databaseName = raw_input("Database Name: ")
+	databasePrefix = raw_input("Database Prefix (Leave blank for none): ")
 	webformPath = raw_input("Path to Webform JSON: ")
 
 	print "Thanks for that information. Let me make sure I can connect to your database and read that file..."
@@ -168,8 +170,8 @@ elif sys.argv[1] == '-i':
 		with open(webformPath) as data_file:    
 			webformJSON = json.load(data_file)
 			webformJSON = convert(webformJSON)
-		if not checkTableExists(db,"webform"):
-			exit("Webform table not found in database. Please make sure you have the Webform module installed, and try again.")
+		if not checkTableExists(db,databasePrefix+"webform"):
+			exit("Webform table not found in database. Please make sure you have the Webform module installed and the right database settings, and try again.")
 
 	except Exception,e:
 		print "Something went wrong..."
@@ -197,34 +199,34 @@ elif sys.argv[1] == '-i':
 			validation[2] = nid
 
 	fieldDataBody = tuple(webformJSON['field_data_body'][0])
-	sql = "INSERT INTO field_data_body VALUES "+str(fieldDataBody)
+	sql = "INSERT INTO "+databasePrefix+"field_data_body VALUES "+str(fieldDataBody)
 	if debug:
 		print sql
 	cur.execute(sql)
 
 	fieldRevisionBody = tuple(webformJSON['field_revision_body'][0])
-	sql = "INSERT INTO field_revision_body VALUES "+str(fieldRevisionBody)
+	sql = "INSERT INTO "+databasePrefix+"field_revision_body VALUES "+str(fieldRevisionBody)
 	if debug:
 		print sql
 	cur.execute(sql)
 
 	nodeCommentStatistics = tuple(webformJSON['node_comment_statistics'][0])
 	nodeCommentStatistics = "("+str(nodeCommentStatistics[0:3])[1:-1]+",NULL,"+str(nodeCommentStatistics[4:])[1:]
-	sql = "INSERT INTO node_comment_statistics VALUES "+str(nodeCommentStatistics)
+	sql = "INSERT INTO "+databasePrefix+"node_comment_statistics VALUES "+str(nodeCommentStatistics)
 	if debug:
 		print sql
 	cur.execute(sql)
 
 	nodeRevision = tuple(webformJSON['node_revision'][0])
 	nodeRevision = "("+str(nodeRevision[0:1])[1:-1]+"0,"+str(nodeRevision[2:4])[1:-1]+",'',"+str(nodeRevision[5:])[1:]
-	sql = "INSERT INTO node_revision VALUES "+str(nodeRevision)
+	sql = "INSERT INTO "+databasePrefix+"node_revision VALUES "+str(nodeRevision)
 	if debug:
 		print sql
 	cur.execute(sql)
-	cur.execute("UPDATE node SET vid={} WHERE nid={}".format(db.insert_id(),nid))
+	cur.execute("UPDATE "+databasePrefix+"node SET vid={} WHERE nid={}".format(db.insert_id(),nid))
 
 	webform = tuple(webformJSON['webform'][0])
-	sql = "INSERT INTO webform VALUES "+str(webform)
+	sql = "INSERT INTO "+databasePrefix+"webform VALUES "+str(webform)
 	if debug:
 		print sql
 	cur.execute(sql)
@@ -236,13 +238,13 @@ elif sys.argv[1] == '-i':
 			component[6] = raw_input("Please enter the name of the RT queue you would \nlike this form to feed into: ")
 		webformComponent = webformComponent + str(tuple(component))+","
 	webformComponent = webformComponent[0:-1]
-	sql = "INSERT INTO webform_component VALUES "+str(webformComponent)
+	sql = "INSERT INTO "+databasePrefix+"webform_component VALUES "+str(webformComponent)
 	if debug:
 		print sql
 	cur.execute(sql)
 
 	if len(webformJSON['variable']) > 0:
-		sql = "INSERT INTO variable VALUES (\'webform_addmore_"+str(nid)+"\',\'"+webformJSON['variable'][0][1]+"\')"
+		sql = "INSERT INTO "+databasePrefix+"variable VALUES (\'webform_addmore_"+str(nid)+"\',\'"+webformJSON['variable'][0][1]+"\')"
 		if debug:
 			print sql
 		cur.execute(sql)
@@ -251,7 +253,7 @@ elif sys.argv[1] == '-i':
 	for role in webformJSON['webform_roles']:
 		webformRoles = webformRoles + str(tuple(role))+","
 	webformRoles = webformRoles[0:-1]
-	sql = "INSERT INTO webform_roles VALUES "+str(webformRoles)
+	sql = "INSERT INTO "+databasePrefix+"webform_roles VALUES "+str(webformRoles)
 	if debug:
 		print sql
 	cur.execute(sql)
@@ -261,7 +263,7 @@ elif sys.argv[1] == '-i':
 		newRuleIds = {}
 		for validation in webformJSON['webform_validation_rule']:
 			validation = tuple(validation)
-			sql = "INSERT INTO webform_validation_rule VALUES (" + "NULL,"+str(validation[1:5])[1:-1]+",NULL,"+str(validation[6:])[1:-2]+")"
+			sql = "INSERT INTO "+databasePrefix+"webform_validation_rule VALUES (" + "NULL,"+str(validation[1:5])[1:-1]+",NULL,"+str(validation[6:])[1:-2]+")"
 			if debug:
 				print sql
 			cur.execute( sql)
@@ -271,7 +273,7 @@ elif sys.argv[1] == '-i':
 		for validationComp in webformJSON['webform_validation_rule_components']:
 			webformValidationComponent = webformValidationComponent + "({},{}),".format(newRuleIds[validationComp[0]],validationComp[1])
 		webformValidationComponent = webformValidationComponent[0:-1]
-		sql = "INSERT INTO webform_validation_rule_components VALUES "+str(webformValidationComponent)
+		sql = "INSERT INTO "+databasePrefix+"webform_validation_rule_components VALUES "+str(webformValidationComponent)
 		if debug:
 			print sql
 		cur.execute(sql)
