@@ -12,3 +12,5 @@ This script includes support for the Webform Validation module.
 Use -e to run the export script.
 
 Use -i to run the import script. Supports --debug which prints all MySQL queries as they are executed.
+
+Now with support for database prefixes.
